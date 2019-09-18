@@ -100,7 +100,7 @@ public class CLongBuffer extends CustomBuffer<CLongBuffer> implements Comparable
     }
 
     /**
-     * Relative <i>put</i> method&nbsp;&nbsp;<i>(optional operation)</i>.
+     * Relative <i>put</i> method.
      *
      * <p>Writes the specified long into this buffer at the current position, and then increments the position.</p>
      *
@@ -158,7 +158,7 @@ public class CLongBuffer extends CustomBuffer<CLongBuffer> implements Comparable
     }
 
     /**
-     * Absolute <i>put</i> method&nbsp;&nbsp;<i>(optional operation)</i>.
+     * Absolute <i>put</i> method.
      *
      * <p>Writes the specified long into this buffer at the specified {@code index}.</p>
      *
@@ -254,7 +254,70 @@ public class CLongBuffer extends CustomBuffer<CLongBuffer> implements Comparable
     }
 
     /**
-     * Relative bulk <i>put</i> method&nbsp;&nbsp;<i>(optional operation)</i>.
+     * Absolute bulk <i>get</i> method.
+     *
+     * <p> This method transfers longs from this buffer into the given destination array.  The position of this buffer is unchanged. An invocation of this
+     * method of the form <code>src.get(index,&nbsp;dst)</code> behaves in exactly the same way as the invocation:
+     *
+     * <pre>
+     *     src.get(index, dst, 0, dst.length) </pre>
+     *
+     * @param index The index in this buffer from which the first long will be read; must be non-negative and less than {@code limit()}
+     * @param dst   The destination array
+     *
+     * @return This buffer
+     *
+     * @throws IndexOutOfBoundsException If {@code index} is negative, not smaller than {@code limit()}, or {@code limit() - index < dst.length}
+     */
+    public CLongBuffer get(int index, long[] dst) {
+        return get(index, dst, 0, dst.length);
+    }
+
+    /**
+     * Absolute bulk <i>get</i> method.
+     *
+     * <p> This method transfers {@code length} longs from this buffer into the given array, starting at the given index in this buffer and at the given offset
+     * in the array. The position of this buffer is unchanged.
+     *
+     * <p> An invocation of this method of the form <code>src.get(index,&nbsp;dst,&nbsp;offset,&nbsp;length)</code> has exactly the same effect as the
+     * following loop except that it first checks the consistency of the supplied parameters and it is potentially much more efficient:
+     *
+     * <pre>{@code
+     *     for (int i = offset, j = index; i < offset + length; i++, j++)
+     *         dst[i] = src.get(j);
+     * }</pre>
+     *
+     * @param index  The index in this buffer from which the first long will be read; must be non-negative and less than {@code limit()}
+     * @param dst    The destination array
+     * @param offset The offset within the array of the first long to be written; must be non-negative and less than {@code dst.length}
+     * @param length The number of longs to be written to the given array; must be non-negative and no larger than the smaller of {@code limit() - index} and
+     *               {@code dst.length - offset}
+     *
+     * @return This buffer
+     *
+     * @throws IndexOutOfBoundsException If the preconditions on the {@code index}, {@code offset}, and {@code length} parameters do not hold
+     */
+    public CLongBuffer get(int index, long[] dst, int offset, int length) {
+        checkFromIndexSize(index, length, limit());
+        if (CLONG_SIZE == 8) {
+            memLongBuffer(address(index), limit()).get(dst, offset, length);
+        } else {
+            get32(index, dst, offset, length);
+        }
+
+        return this;
+    }
+
+    private void get32(int index, long[] dst, int offset, int length) {
+        checkFromIndexSize(offset, length, dst.length);
+        int end = offset + length;
+        for (int i = offset, j = index; i < end; i++, j++) {
+            dst[i] = get(j);
+        }
+    }
+
+    /**
+     * Relative bulk <i>put</i> method.
      *
      * <p>This method transfers the entire content of the specified source long array into this buffer. An invocation of this method of the form
      * {@code dst.put(a)} behaves in exactly the same way as the invocation</p>
@@ -271,7 +334,7 @@ public class CLongBuffer extends CustomBuffer<CLongBuffer> implements Comparable
     }
 
     /**
-     * Relative bulk <i>put</i> method&nbsp;&nbsp;<i>(optional operation)</i>.
+     * Relative bulk <i>put</i> method.
      *
      * <p>This method transfers longs into this buffer from the specified source array. If there are more longs to be copied from the array than remain
      * in this buffer, that is, if {@code length}&nbsp;{@code &gt;}&nbsp;{@code remaining()}, then no longs are transferred and a
@@ -316,6 +379,69 @@ public class CLongBuffer extends CustomBuffer<CLongBuffer> implements Comparable
         int end = offset + length;
         for (int i = offset; i < end; i++) {
             put(src[i]);
+        }
+    }
+
+    /**
+     * Absolute bulk <i>put</i> method.
+     *
+     * <p> This method copies longs into this buffer from the given source array. The position of this buffer is unchanged. An invocation of this method of the
+     * form <code>dst.put(index,&nbsp;src)</code> behaves in exactly the same way as the invocation:
+     *
+     * <pre>
+     *     dst.put(index, src, 0, src.length); </pre>
+     *
+     * @param index The index in this buffer at which the first long will be written; must be non-negative and less than {@code limit()}
+     * @param src   The array from which $type$s are to be read
+     *
+     * @return This buffer
+     *
+     * @throws IndexOutOfBoundsException If {@code index} is negative, not smaller than {@code limit()}, or {@code limit() - index < src.length}
+     */
+    public CLongBuffer put(int index, long[] src) {
+        return put(index, src, 0, src.length);
+    }
+
+    /**
+     * Absolute bulk <i>put</i> method.
+     *
+     * <p> This method transfers {@code length} longs from the given array, starting at the given offset in the array and at the given index in this buffer.
+     * The position of this buffer is unchanged.
+     *
+     * <p> An invocation of this method of the form <code>dst.put(index,&nbsp;src,&nbsp;offset,&nbsp;length)</code> has exactly the same effect as the
+     * following loop except that it first checks the consistency of the supplied parameters and it is potentially much more efficient:
+     *
+     * <pre>{@code
+     *     for (int i = offset, j = index; i < offset + length; i++, j++)
+     *         dst.put(j, src[i]);
+     * }</pre>
+     *
+     * @param index  The index in this buffer at which the first long will be written; must be non-negative and less than {@code limit()}
+     * @param src    The array from which longs are to be read
+     * @param offset The offset within the array of the first long to be read; must be non-negative and less than {@code src.length}
+     * @param length The number of longs to be read from the given array; must be non-negative and no larger than the smaller of {@code limit() - index} and
+     *               {@code src.length - offset}
+     *
+     * @return This buffer
+     *
+     * @throws IndexOutOfBoundsException If the preconditions on the {@code index}, {@code offset}, and {@code length} parameters do not hold
+     */
+    public CLongBuffer put(int index, long[] src, int offset, int length) {
+        checkFromIndexSize(index, length, limit());
+        if (CLONG_SIZE == 8) {
+            memLongBuffer(address(index), limit()).put(src, offset, length);
+        } else {
+            put32(index, src, offset, length);
+        }
+
+        return this;
+    }
+
+    private void put32(int index, long[] src, int offset, int length) {
+        checkFromIndexSize(offset, length, src.length);
+        int end = offset + length;
+        for (int i = offset, j = index; i < end; i++, j++) {
+            put(j, src[i]);
         }
     }
 

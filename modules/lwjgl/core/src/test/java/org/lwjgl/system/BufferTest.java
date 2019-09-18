@@ -10,6 +10,7 @@ import org.testng.*;
 import org.testng.annotations.*;
 
 import java.nio.*;
+import java.util.*;
 
 import static org.lwjgl.system.MemoryUtil.*;
 import static org.testng.Assert.*;
@@ -64,7 +65,9 @@ public class BufferTest {
 
     public void testPointerBuffer() {
         PointerBuffer buffer = memCallocPointer(8);
-        long[] array = new long[buffer.capacity()];
+        long[]        array  = new long[buffer.capacity()];
+
+        // Relative bulk
 
         for (int i = 0; i < buffer.capacity(); i++) {
             buffer.put(i);
@@ -87,6 +90,113 @@ public class BufferTest {
         for (long l : array) {
             assertEquals(buffer.get(), l);
         }
+
+        // Absolute bulk
+
+        buffer.clear();
+
+        Arrays.fill(array, NULL);
+        for (int i = 0; i < buffer.capacity(); i++) {
+            buffer.put(i, i);
+        }
+        buffer.get(2, array, 2, 4);
+        assertEquals(buffer.position(), 0);
+        assertEquals(buffer.limit(), buffer.capacity());
+
+        assertEquals(array[0], NULL);
+        assertEquals(array[1], NULL);
+        assertEquals(array[2], 2L);
+        assertEquals(array[3], 3L);
+        assertEquals(array[4], 4L);
+        assertEquals(array[5], 5L);
+        assertEquals(array[6], NULL);
+        assertEquals(array[7], NULL);
+
+        memSet(buffer, 0);
+        for (int i = 0; i < array.length; i++) {
+            array[i] = array.length - i;
+        }
+        buffer.put(2, array, 2, 4);
+        assertEquals(buffer.position(), 0);
+        assertEquals(buffer.limit(), buffer.capacity());
+
+        assertEquals(buffer.get(0), NULL);
+        assertEquals(buffer.get(1), NULL);
+        assertEquals(buffer.get(2), 6L);
+        assertEquals(buffer.get(3), 5L);
+        assertEquals(buffer.get(4), 4L);
+        assertEquals(buffer.get(5), 3L);
+        assertEquals(buffer.get(6), NULL);
+        assertEquals(buffer.get(7), NULL);
+
+        memFree(buffer);
+    }
+
+    public void testCLongBuffer() {
+        CLongBuffer buffer = memCallocCLong(8);
+        long[]      array  = new long[buffer.capacity()];
+
+        // Relative bulk
+
+        for (int i = 0; i < buffer.capacity(); i++) {
+            buffer.put(i);
+        }
+        buffer.flip();
+        buffer.get(array);
+        assertEquals(buffer.remaining(), 0);
+        buffer.flip();
+        for (long l : array) {
+            assertEquals(l, buffer.get());
+        }
+
+        for (int i = 0; i < array.length; i++) {
+            array[i] = array.length - i;
+        }
+        buffer.flip();
+        buffer.put(array);
+        assertEquals(buffer.remaining(), 0);
+        buffer.flip();
+        for (long l : array) {
+            assertEquals(buffer.get(), l);
+        }
+
+        // Absolute bulk
+
+        buffer.clear();
+
+        Arrays.fill(array, NULL);
+        for (int i = 0; i < buffer.capacity(); i++) {
+            buffer.put(i, i);
+        }
+        buffer.get(2, array, 2, 4);
+        assertEquals(buffer.position(), 0);
+        assertEquals(buffer.limit(), buffer.capacity());
+
+        assertEquals(array[0], NULL);
+        assertEquals(array[1], NULL);
+        assertEquals(array[2], 2L);
+        assertEquals(array[3], 3L);
+        assertEquals(array[4], 4L);
+        assertEquals(array[5], 5L);
+        assertEquals(array[6], NULL);
+        assertEquals(array[7], NULL);
+
+        memSet(buffer, 0);
+        for (int i = 0; i < array.length; i++) {
+            array[i] = array.length - i;
+        }
+        buffer.put(2, array, 2, 4);
+        assertEquals(buffer.position(), 0);
+        assertEquals(buffer.limit(), buffer.capacity());
+
+        assertEquals(buffer.get(0), NULL);
+        assertEquals(buffer.get(1), NULL);
+        assertEquals(buffer.get(2), 6L);
+        assertEquals(buffer.get(3), 5L);
+        assertEquals(buffer.get(4), 4L);
+        assertEquals(buffer.get(5), 3L);
+        assertEquals(buffer.get(6), NULL);
+        assertEquals(buffer.get(7), NULL);
 
         memFree(buffer);
     }
