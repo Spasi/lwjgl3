@@ -462,6 +462,7 @@
         <mkdir dir="${bin.lwjgl}/core/META-INF/versions/9" if:set="jdk9"/>
         <mkdir dir="${bin.lwjgl}/core/META-INF/versions/10" if:set="jdk10"/>
         <mkdir dir="${bin.lwjgl}/core/META-INF/versions/16" if:set="jdk16"/>
+        <mkdir dir="${bin.lwjgl}/core/META-INF/versions/22" if:set="jdk22"/>
         <delete file="${bin.lwjgl}/core/META-INF/versions/9/module-info.class" quiet="true" if:set="jdk9"/>
         <lwjgl.javac9 destdir="${bin.lwjgl}/core/META-INF/versions/9" taskname="javac: Core - Java 9" if:set="jdk9">
             <classpath>
@@ -491,6 +492,16 @@
             </src>
             <include name="**"/>
         </lwjgl.javac16>
+        <lwjgl.javac22 destdir="${bin.lwjgl}/core/META-INF/versions/22" taskname="javac: Core - Java 22" if:set="jdk22">
+            <compilerarg line="--enable-preview -Xlint:-preview"/>
+            <classpath>
+                <pathelement path="${bin.lwjgl}/core"/>
+            </classpath>
+            <src>
+                <pathelement path="${module.lwjgl}/core/src/main/java22"/>
+            </src>
+            <include name="**"/>
+        </lwjgl.javac22>
 
         <parallel threadsPerProcessor="1">
             <compileBinding binding="assimp"/>
@@ -594,6 +605,7 @@
                 <pathelement path="${bin.lwjgl}/core/META-INF/versions/9" if:set="core.java9"/>
                 <pathelement path="${bin.lwjgl}/core/META-INF/versions/10" if:set="core.java10"/>
                 <pathelement path="${bin.lwjgl}/core/META-INF/versions/16" if:set="core.java16"/>
+                <pathelement path="${bin.lwjgl}/core/META-INF/versions/22" if:set="core.java22"/>
                 <pathelement path="${module.classpath}"/>
                 <pathelement path="${kotlinc}/lib/kotlin-stdlib.jar"/>
             </classpath>
@@ -621,6 +633,7 @@
                 <pathelement path="${bin.lwjgl}/core/META-INF/versions/9" if:set="core.java9"/>
                 <pathelement path="${bin.lwjgl}/core/META-INF/versions/10" if:set="core.java10"/>
                 <pathelement path="${bin.lwjgl}/core/META-INF/versions/16" if:set="core.java16"/>
+                <pathelement path="${bin.lwjgl}/core/META-INF/versions/22" if:set="core.java22"/>
                 <pathelement path="${module.classpath}"/>
                 <pathelement path="${bin.extract}"/>
                 <pathelement path="${test.resources}"/>
@@ -883,6 +896,28 @@
             <exclude name="org/lwjgl/jmh/Hashing*" unless:true="${test.hashing}"/>
             <exclude name="org/lwjgl/jmh/VarHandle*" unless:set="jdk9"/>
         </lwjgl.javac>
+
+        <mkdir dir="${bin.samples}/META-INF/versions/22" if:set="jdk22"/>
+        <lwjgl.javac22 srcdir="modules/samples/src/test/java22" destdir="${bin.samples}/META-INF/versions/22" taskname="javac: Samples - Java 22" if:set="jdk22">
+            <compilerarg value="--enable-preview"/>
+            <classpath>
+                <pathelement path="${module.classpath}"/>
+                <pathelement path="${bin.lwjgl}/core/META-INF/versions/22"/>
+                <pathelement path="${bin.test}"/>
+                <pathelement path="${lib}/java/jsr305.jar"/>
+                <pathelement path="${lib}/java/jmh-core.jar"/>
+                <pathelement path="${lib}/java/jmh-generator-annprocess.jar"/>
+                <pathelement path="${lib}/java/joml.jar"/>
+                <pathelement path="${lib}/java/testng.jar"/>
+            </classpath>
+
+            <!-- Demos -->
+            <include name="org/lwjgl/demo/glfw/**" if:set="test.glfw"/>
+            <include name="org/lwjgl/demo/system/windows/**" if:set="platform.windows"/>
+
+            <!-- Benchmarks -->
+            <include name="org/lwjgl/jmh/**"/>
+        </lwjgl.javac22>
     </target>
 
     <target name="tests" description="Runs the LWJGL test suite" depends="compile-tests, compile-native">
@@ -891,6 +926,7 @@
                 <pathelement path="${bin.lwjgl}/core/META-INF/versions/9" if:set="core.java9"/>
                 <pathelement path="${bin.lwjgl}/core/META-INF/versions/10" if:set="core.java10"/>
                 <pathelement path="${bin.lwjgl}/core/META-INF/versions/16" if:set="core.java16"/>
+                <pathelement path="${bin.lwjgl}/core/META-INF/versions/22" if:set="core.java22"/>
                 <pathelement path="${module.classpath}"/>
                 <pathelement path="${bin.test}"/>
                 <pathelement path="${lib}/java/jcommander.jar"/>
@@ -931,9 +967,11 @@
                 <pathelement path="${bin.lwjgl}/core/META-INF/versions/9" if:set="core.java9"/>
                 <pathelement path="${bin.lwjgl}/core/META-INF/versions/10" if:set="core.java10"/>
                 <pathelement path="${bin.lwjgl}/core/META-INF/versions/16" if:set="core.java16"/>
+                <pathelement path="${bin.lwjgl}/core/META-INF/versions/22" if:set="core.java22"/>
                 <pathelement path="${module.classpath}"/>
                 <pathelement path="${bin.test}"/>
                 <pathelement path="${bin.samples}"/>
+                <pathelement path="${bin.samples}/META-INF/versions/22" if:set="jdk22"/>
                 <pathelement path="${test.resources}"/>
                 <pathelement path="${lib}/java/testng.jar"/>
                 <pathelement path="${lib}/java/joml.jar"/>
@@ -944,6 +982,7 @@
             </classpath>
 
             <jvmarg value="-server"/>
+            <jvmarg line="--enable-preview --enable-native-access=ALL-UNNAMED" if:set="core.java22"/>
             <jvmarg value="-XstartOnFirstThread" if:set="platform.macos"/>
             <!--<jvmarg value="-Xcheck:jni"/>-->
 
@@ -1550,6 +1589,9 @@
                 </copy>
                 <copy todir="${module.lwjgl}/core/src/generated/java/META-INF/versions/16" if:set="jdk16">
                     <fileset dir="${module.lwjgl}/core/src/main/java16" includes="**"/>
+                </copy>
+                <copy todir="${module.lwjgl}/core/src/generated/java/META-INF/versions/22" if:set="jdk22">
+                    <fileset dir="${module.lwjgl}/core/src/main/java22" includes="**"/>
                 </copy>
                 <copy todir="${bin.lwjgl}/core/META-INF/native-image/org.lwjgl/lwjgl">
                     <fileset dir="config/native-image/META-INF/native-image" includes="**" excludes="resource-config.json"/>

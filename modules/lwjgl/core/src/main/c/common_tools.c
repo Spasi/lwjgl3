@@ -209,4 +209,11 @@ JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *vm, void *reserved) {
     tlsDestroy();
 }
 
+// Intentionally empty functions for benchmarking purposes
+JNIEXPORT void JNICALL org_lwjgl_system_noop(void) {}
+JNIEXPORT void JNICALL org_lwjgl_system_noop_params(void *param0, void *param1, int param2) {
+    UNUSED_PARAMS(param0, param1);
+    UNUSED_PARAM(param2);
+}
+
 EXTERN_C_EXIT

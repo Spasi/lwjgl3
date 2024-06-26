@@ -70,6 +70,7 @@
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/lwjgl/lwjgl.core9.iml" filepath="$PROJECT_DIR$/.idea/modules/lwjgl/lwjgl.core9.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/lwjgl/lwjgl.core10.iml" filepath="$PROJECT_DIR$/.idea/modules/lwjgl/lwjgl.core10.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/lwjgl/lwjgl.core16.iml" filepath="$PROJECT_DIR$/.idea/modules/lwjgl/lwjgl.core16.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/lwjgl/lwjgl.core22.iml" filepath="$PROJECT_DIR$/.idea/modules/lwjgl/lwjgl.core22.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/lwjgl/lwjgl.cuda.iml" filepath="$PROJECT_DIR$/.idea/modules/lwjgl/lwjgl.cuda.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/lwjgl/lwjgl.egl.iml" filepath="$PROJECT_DIR$/.idea/modules/lwjgl/lwjgl.egl.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/lwjgl/lwjgl.fmod.iml" filepath="$PROJECT_DIR$/.idea/modules/lwjgl/lwjgl.fmod.iml" />
@@ -119,7 +120,8 @@
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/extract.iml" filepath="$PROJECT_DIR$/.idea/modules/extract.iml" />
 
       <!-- The LWJGL demo & benchmarking suite -->
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/samples.iml" filepath="$PROJECT_DIR$/.idea/modules/samples.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/samples/samples.samples.iml" filepath="$PROJECT_DIR$/.idea/modules/samples/samples.samples.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/samples/samples.samples22.iml" filepath="$PROJECT_DIR$/.idea/modules/samples/samples.samples22.iml" />
     </modules>
   </component>
 </project>

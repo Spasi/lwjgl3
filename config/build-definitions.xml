@@ -247,6 +247,14 @@ This script is included in /build.xml and /config/update-dependencies.xml.
         </javac>
     </presetdef>
 
+    <presetdef name="lwjgl.javac22">
+        <javac sourcepath="" debug="yes" encoding="UTF-8">
+            <compilerarg line="--release 22"/>
+            <compilerarg value="-Xlint:all"/>
+            <compilerarg value="-XDignore.symbol.file"/>
+        </javac>
+    </presetdef>
+
     <macrodef name="quiet">
         <element name="body" implicit="yes"/>
         <sequential>

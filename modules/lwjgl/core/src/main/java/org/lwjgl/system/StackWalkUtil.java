@@ -12,7 +12,7 @@ import java.util.*;
  *
  * <p>On Java 9 these methods are implemented using {@code java.lang.StackWalker}, which has much lower overhead.</p>
  */
-final class StackWalkUtil {
+public final class StackWalkUtil {
 
     private StackWalkUtil() {
     }
@@ -21,7 +21,7 @@ final class StackWalkUtil {
         return (StackTraceElement[])a;
     }
 
-    static Object stackWalkGetMethod(Class<?> after) {
+    public static Object stackWalkGetMethod(Class<?> after) {
         StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
 
         for (int i = 3; i < stackTrace.length; i++) {
@@ -58,7 +58,7 @@ final class StackWalkUtil {
     }
 
     @Nullable
-    static Object stackWalkCheckPop(Class<?> after, Object pushedObj) {
+    public static Object stackWalkCheckPop(Class<?> after, Object pushedObj) {
         StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
 
         for (int i = 3; i < stackTrace.length; i++) {
