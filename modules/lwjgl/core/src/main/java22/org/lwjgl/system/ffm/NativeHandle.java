@@ -16,6 +16,7 @@ import static java.lang.constant.ConstantDescs.*;
 import static org.lwjgl.system.APIUtil.*;
 import static org.lwjgl.system.Checks.*;
 import static org.lwjgl.system.ffm.BindingGenerator.*;
+import static org.lwjgl.system.ffm.ConstantDescs.*;
 
 final class NativeHandle {
 
@@ -82,7 +83,7 @@ final class NativeHandle {
 
         var type = method.getReturnType();
         if (type != void.class) {
-            var returnAnnotation       = method.getAnnotation(FFMReturn.class);
+            var returnAnnotation = method.getAnnotation(FFMReturn.class);
             if (returnAnnotation != null) {
                 var returnOutputAnnotation = method.getAnnotation(FFMReturn.Output.class);
 
@@ -146,22 +147,109 @@ final class NativeHandle {
             : cb.allocateLocal(TypeKind.ReferenceType);
     }
 
-    Object getClassData(SymbolLookup loader) {
-        return hasFunctionAddress ? ffm : List.of(ffm, loader.find(nativeName).orElseThrow());
+    Object getClassData(BindingContext context, Method method) {
+        var functionAddress = hasFunctionAddress
+            ? MemorySegment.NULL
+            : context.loader().find(nativeName).orElseThrow();
+
+        var traceConsumer = context.traceConsumer();
+        if (traceConsumer == null) {
+            return hasFunctionAddress
+                ? ffm
+                : List.of(ffm, functionAddress);
+        }
+
+        return List.of(ffm, functionAddress, traceConsumer, method);
     }
 
-    void build(CodeBuilder cb) {
-        if (hasFunctionAddress) {
+    void build(BindingContext context, CodeBuilder cb) {
+        var traceConsumer = context.traceConsumer();
+
+        if (hasFunctionAddress && traceConsumer == null) {
             // Load target handle via Condy, using MethodHandles::classData as the bootstrap method.
             cb.ldc(DynamicConstantDesc.ofNamed(BSM_CLASS_DATA, DEFAULT_NAME, CD_MethodHandle));
         } else {
-            cb
+            if (traceConsumer == null) {
                 // Load target handle & function address via Condy, using MethodHandles::classDataAt as the bootstrap method.
-                .ldc(DynamicConstantDesc.ofNamed(BSM_CLASS_DATA_AT, DEFAULT_NAME, CD_MethodHandle, 0))
+                cb.ldc(DynamicConstantDesc.ofNamed(BSM_CLASS_DATA_AT, DEFAULT_NAME, CD_MethodHandle, 0));
+            }
+            if (!hasFunctionAddress) {
                 // Pass the function address manually, to avoid bindTo's additional lambda form.
-                .ldc(DynamicConstantDesc.ofNamed(BSM_CLASS_DATA_AT, DEFAULT_NAME, CD_MemorySegment, 1));
+                cb.ldc(DynamicConstantDesc.ofNamed(BSM_CLASS_DATA_AT, DEFAULT_NAME, CD_MemorySegment, 1));
+            }
         }
     }
+
+    static void trace(CodeBuilder cb, MethodTypeDesc nativeMethodTypeDesc) {
+        // Load target handle via Condy, using MethodHandles::classDataAt as the bootstrap method.
+        cb.ldc(DynamicConstantDesc.ofNamed(BSM_CLASS_DATA_AT, DEFAULT_NAME, CD_MethodHandle, 0));
+        for (var p = 0; p < nativeMethodTypeDesc.parameterCount(); p++) {
+            cb.loadInstruction(
+                TypeKind.from(nativeMethodTypeDesc.parameterType(p)),
+                cb.parameterSlot(p)
+            );
+        }
+        cb.invokevirtual(CD_MethodHandle, "invokeExact", nativeMethodTypeDesc);
+
+        int returnSlot;
+        var returnTK = TypeKind.from(nativeMethodTypeDesc.returnType());
+        if (returnTK != TypeKind.VoidType) {
+            returnSlot = cb.allocateLocal(returnTK);
+            cb.storeInstruction(returnTK, returnSlot);
+        } else {
+            returnSlot = -1;
+        }
+
+        cb
+            // Load TraceConsumer via Condy, using MethodHandles::classDataAt as the bootstrap method.
+            .ldc(DynamicConstantDesc.ofNamed(BSM_CLASS_DATA_AT, DEFAULT_NAME, CD_TraceConsumer, 2))
+            // Load Method via Condy, using MethodHandles::classDataAt as the bootstrap method.
+            .ldc(DynamicConstantDesc.ofNamed(BSM_CLASS_DATA_AT, DEFAULT_NAME, CD_Method, 3));
+        if (returnTK == TypeKind.VoidType) {
+            cb.aconst_null();
+        } else {
+            cb.loadInstruction(returnTK, returnSlot);
+            if (returnTK != TypeKind.ReferenceType) {
+                boxPrimitiveValue(cb, returnTK);
+            }
+        }
+        cb
+            .constantInstruction(nativeMethodTypeDesc.parameterCount())
+            .anewarray(CD_Object);
+        for (var p = 0; p < nativeMethodTypeDesc.parameterCount(); p++) {
+            var tk = TypeKind.from(nativeMethodTypeDesc.parameterType(p));
+
+            cb
+                .dup()
+                .constantInstruction(p)
+                .loadInstruction(tk, cb.parameterSlot(p));
+            if (tk != TypeKind.ReferenceType) {
+                boxPrimitiveValue(cb, tk);
+            }
+            cb.aastore();
+        }
+        cb.invokeinterface(CD_TraceConsumer, "accept", MTD_TraceConsumer_accept);
+
+        // Return
+        if (returnTK != TypeKind.VoidType) {
+            cb.loadInstruction(returnTK, returnSlot);
+        }
+        cb.returnInstruction(returnTK);
+    }
+
+    private static void boxPrimitiveValue(CodeBuilder cb, TypeKind tk) {
+        switch (tk) {
+            case BooleanType -> cb.invokestatic(CD_Boolean, "valueOf", MTD_Boolean_valueOf);
+            case ByteType -> cb.invokestatic(CD_Byte, "valueOf", MTD_Byte_valueOf);
+            case ShortType -> cb.invokestatic(CD_Short, "valueOf", MTD_Short_valueOf);
+            case IntType -> cb.invokestatic(CD_Integer, "valueOf", MTD_Integer_valueOf);
+            case LongType -> cb.invokestatic(CD_Long, "valueOf", MTD_Long_valueOf);
+            case FloatType -> cb.invokestatic(CD_Float, "valueOf", MTD_Float_valueOf);
+            case DoubleType -> cb.invokestatic(CD_Double, "valueOf", MTD_Double_valueOf);
+            default -> throw new UnsupportedOperationException("Unsupported primitive type: " + tk);
+        }
+    }
+
 
     MethodHandle getSimpleHandle(SymbolLookup loader) {
         return hasFunctionAddress

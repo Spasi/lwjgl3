@@ -21,6 +21,7 @@ import static java.lang.invoke.MethodHandles.*;
 import static java.lang.invoke.MethodType.*;
 import static org.lwjgl.system.APIUtil.*;
 import static org.lwjgl.system.Checks.*;
+import static org.lwjgl.system.ffm.ConstantDescs.*;
 
 /**
  * Generates LWJGL bindings from an interface, optionally annotated with {@code FFM*} annotations.
@@ -103,46 +104,9 @@ public final class BindingGenerator {
         CD_int
     );
 
-    private static final int METHOD_FLAGS_PUBLIC        = AccessFlags.ofMethod(AccessFlag.PUBLIC).flagsMask();
-    private static final int METHOD_FLAGS_PUBLIC_STATIC = AccessFlags.ofMethod(AccessFlag.PUBLIC, AccessFlag.STATIC).flagsMask();
-
-    static final ClassDesc
-        CD_AddressLayout            = AddressLayout.class.describeConstable().orElseThrow(),
-        CD_byteArray                = byte[].class.describeConstable().orElseThrow(),
-        CD_Charset                  = Charset.class.describeConstable().orElseThrow(),
-        CD_IllegalArgumentException = IllegalArgumentException.class.describeConstable().orElseThrow(),
-        CD_MemoryLayout             = MemoryLayout.class.describeConstable().orElseThrow(),
-        CD_MemorySegment            = MemorySegment.class.describeConstable().orElseThrow(),
-        CD_SegmentAllocator         = SegmentAllocator.class.describeConstable().orElseThrow(),
-        CD_StackAllocator           = StackAllocator.class.describeConstable().orElseThrow(),
-        CD_StackArena               = StackArena.class.describeConstable().orElseThrow(),
-        CD_StandardCharsets         = StandardCharsets.class.describeConstable().orElseThrow(),
-        CD_ValueLayout              = ValueLayout.class.describeConstable().orElseThrow(),
-        CD_ValueLayout$OfByte       = ValueLayout.OfByte.class.describeConstable().orElseThrow(),
-        CD_ValueLayout$OfShort      = ValueLayout.OfShort.class.describeConstable().orElseThrow(),
-        CD_ValueLayout$OfInt        = ValueLayout.OfInt.class.describeConstable().orElseThrow(),
-        CD_ValueLayout$OfLong       = ValueLayout.OfLong.class.describeConstable().orElseThrow();
-
-    static final MethodTypeDesc
-        MTD_Charset_forName                             = MethodTypeDesc.of(CD_Charset, CD_String),
-        MTD_IllegalArgumentException_new                = MethodTypeDesc.of(CD_void, CD_String),
-        MTD_MemorySegment_asSlice                       = MethodTypeDesc.of(CD_MemorySegment, CD_long, CD_long),
-        MTD_MemorySegment_equals                        = MethodTypeDesc.of(CD_boolean, CD_Object),
-        MTD_MemorySegment_get$OfByte                    = MethodTypeDesc.of(CD_byte, CD_ValueLayout$OfByte, CD_long),
-        MTD_MemorySegment_get$OfShort                   = MethodTypeDesc.of(CD_short, CD_ValueLayout$OfShort, CD_long),
-        MTD_MemorySegment_get$OfInt                     = MethodTypeDesc.of(CD_int, CD_ValueLayout$OfInt, CD_long),
-        MTD_MemorySegment_get$OfLong                    = MethodTypeDesc.of(CD_long, CD_ValueLayout$OfLong, CD_long),
-        MTD_MemorySegment_get$Address                   = MethodTypeDesc.of(CD_MemorySegment, CD_AddressLayout, CD_long),
-        MTD_MemorySegment_getString                     = MethodTypeDesc.of(CD_String, CD_long, CD_Charset),
-        MTD_MemorySegment_toArray$OfByte                = MethodTypeDesc.of(CD_byteArray, CD_ValueLayout$OfByte),
-        MTD_SegmentAllocator_allocate_long              = MethodTypeDesc.of(CD_MemorySegment, CD_long),
-        MTD_SegmentAllocator_allocate_MemoryLayout_long = MethodTypeDesc.of(CD_MemorySegment, CD_MemoryLayout, CD_long),
-        MTD_SegmentAllocator_allocateFrom               = MethodTypeDesc.of(CD_MemorySegment, CD_String, CD_Charset),
-        MTD_String_new$byteArray_Charset                = MethodTypeDesc.of(CD_void, CD_byteArray, CD_Charset),
-        MTD_StackAllocator_push                         = MethodTypeDesc.of(CD_StackAllocator),
-        MTD_StackAllocator_pop                          = MethodTypeDesc.of(CD_StackAllocator),
-        MTD_StackArena_stackPush                        = MethodTypeDesc.of(CD_StackArena),
-        MTD_Throwable_addSuppressed                     = MethodTypeDesc.of(CD_void, CD_Throwable);
+    private static final int METHOD_FLAGS_PUBLIC         = AccessFlags.ofMethod(AccessFlag.PUBLIC).flagsMask();
+    private static final int METHOD_FLAGS_PRIVATE_STATIC = AccessFlags.ofMethod(AccessFlag.PRIVATE, AccessFlag.STATIC).flagsMask();
+    private static final int METHOD_FLAGS_PUBLIC_STATIC  = AccessFlags.ofMethod(AccessFlag.PUBLIC, AccessFlag.STATIC).flagsMask();
 
     private static final Set<String> STANDARD_CHARSETS = Arrays.stream(StandardCharsets.class.getDeclaredFields())
         .map(Field::getName)
@@ -151,14 +115,18 @@ public final class BindingGenerator {
     private BindingGenerator() {
     }
 
-    public static <T> T generate(Lookup lookup, Class<T> bindingInterface) {
-        return generate(lookup, bindingInterface, null);
-    }
+    // TODO: pass configurator instance instead
+    // Should have customizability for FFMCritical and TraceConsumer, filterable per-method
+    // Also loader?
+    // Try to figure out an interface for tracing pre, post, return values, transformed signature, etc.
 
+    public static <T> T generate(Lookup lookup, Class<T> bindingInterface)                              { return generate(lookup, bindingInterface, null, null); }
+    public static <T> T generate(Lookup lookup, Class<T> bindingInterface, TraceConsumer traceConsumer) { return generate(lookup, bindingInterface, null, traceConsumer); }
+    public static <T> T generate(Lookup lookup, Class<T> bindingInterface, SymbolLookup loader)         { return generate(lookup, bindingInterface, loader, null); }
     @SuppressWarnings("unchecked")
-    public static <T> T generate(Lookup lookup, Class<T> bindingInterface, SymbolLookup loader) {
+    public static <T> T generate(Lookup lookup, Class<T> bindingInterface, SymbolLookup loader, TraceConsumer traceConsumer) {
         try {
-            return ((Class<T>)generateImplementation(lookup, bindingInterface, loader).lookupClass())
+            return ((Class<T>)generateImplementation(lookup, bindingInterface, new BindingContext(loader, traceConsumer)).lookupClass())
                 .getDeclaredConstructor()
                 .newInstance();
         } catch (Throwable t) {
@@ -173,13 +141,18 @@ public final class BindingGenerator {
         }
     }
 
-    private static Lookup generateImplementation(Lookup lookup, Class<?> functionsClass, SymbolLookup loader) throws IllegalAccessException {
+    static record BindingContext(
+        SymbolLookup loader,
+        TraceConsumer traceConsumer
+    ) { }
+
+    private static Lookup generateImplementation(Lookup lookup, Class<?> functionsClass, BindingContext context) throws IllegalAccessException {
         var methods = functionsClass.getMethods();
 
         // Slot 0: loader
         // Slot 1+: reflected Method instances
         var classData = new ArrayList<>(1 + methods.length);
-        classData.add(loader);
+        classData.add(context);
         classData.addAll(Arrays.asList(methods));
 
         var bytecode = ClassFile.of().build(getClassDesc(functionsClass), classBuilder -> {
@@ -194,7 +167,7 @@ public final class BindingGenerator {
                     BSM_BOOTSTRAP,
                     method.getName(),
                     CD_MethodHandle,
-                    constantPool.intEntry(m + 1).constantValue());
+                    m + 1);
 
                 var methodTypeDesc = getMethodTypeDesc(method);
 
@@ -228,8 +201,8 @@ public final class BindingGenerator {
             apiLog("BOOTSTRAPPING #" + index + ": " + name);
         }
         try {
-            var loader = classDataAt(lookup, DEFAULT_NAME, SymbolLookup.class, 0);
-            var method = classDataAt(lookup, DEFAULT_NAME, Method.class, index);
+            var context = classDataAt(lookup, DEFAULT_NAME, BindingContext.class, 0);
+            var method  = classDataAt(lookup, DEFAULT_NAME, Method.class, index);
 
             var parameters = method.getParameters();
 
@@ -241,7 +214,7 @@ public final class BindingGenerator {
 
             var virtualParameterCount = nativeHandle.getVirtualParameterCount();
 
-            var wrapperFlags = getWrapperFlags(method, parameters, virtualParameterCount);
+            var wrapperFlags = getWrapperFlags(method, parameters, virtualParameterCount) | (context.traceConsumer == null ? 0 : 8);
             if (wrapperFlags != 0) {
                 // Wrap the FFM method handle call in a generated method with the same signature as the bootstrapped method.
                 // This is required when the native function is not compatible with the bootstrapped method and transformations must be applied.
@@ -249,8 +222,17 @@ public final class BindingGenerator {
                     apiLog("\t-> generating wrapper method");
                 }
 
-                var bytecode = ClassFile.of().build(getClassDescWrapper(method), classBuilder -> {
+                var thisClass = getClassDescWrapper(method);
+                var bytecode = ClassFile.of().build(thisClass, classBuilder -> {
                     startHiddenClass(classBuilder);
+
+                    var nativeMethodTypeDesc = nativeHandle.ffm.type().describeConstable().orElseThrow();
+                    if (context.traceConsumer() != null) {
+                        classBuilder
+                            .withMethod("trace", nativeMethodTypeDesc, METHOD_FLAGS_PRIVATE_STATIC, methodBuilder -> methodBuilder
+                                .withCode(cb -> NativeHandle.trace(cb, nativeMethodTypeDesc))
+                            );
+                    }
 
                     var methodTypeDesc = getMethodTypeDesc(method);
 
@@ -297,7 +279,7 @@ public final class BindingGenerator {
                                     }
 
                                     // LDC the target handle
-                                    nativeHandle.build(bcb);
+                                    nativeHandle.build(context, bcb);
                                     // Pass arguments, transform if necessary
                                     var firstNativeParameterIndex = nativeHandle.getFirstNativeParameterIndex();
                                     for (int p = 0; p < methodTypeDesc.parameterCount(); p++) {
@@ -326,9 +308,9 @@ public final class BindingGenerator {
                                                 buildAllocateFrom(bcb, allocatorSlot, slot, parameter);
                                             }
                                         } else if (parameter.getType() == boolean.class && parameter.getAnnotation(FFMBooleanInt.class) != null) {
-                                            bcb.iload(p); // TODO: test
+                                            bcb.iload(slot); // TODO: test
                                         } else {
-                                            bcb.loadInstruction(TypeKind.from(methodTypeDesc.parameterType(p)), p);
+                                            bcb.loadInstruction(TypeKind.from(methodTypeDesc.parameterType(p)), slot);
                                         }
                                     }
                                     if (returnTransform != null) {
@@ -337,7 +319,11 @@ public final class BindingGenerator {
 
                                     // Invoke the FFM method handle
                                     var booleanInt = method.getAnnotation(FFMBooleanInt.class);
-                                    bcb.invokevirtual(CD_MethodHandle, "invokeExact", nativeHandle.ffm.type().describeConstable().orElseThrow());
+                                    if (context.traceConsumer == null) {
+                                        bcb.invokevirtual(CD_MethodHandle, "invokeExact", nativeMethodTypeDesc);
+                                    } else {
+                                        bcb.invokestatic(thisClass, "trace", nativeMethodTypeDesc);
+                                    }
                                     if (method.getReturnType() != void.class) {
                                         // Return result if non-void, transform if necessary
                                         if (returnTransform != null) {
@@ -359,12 +345,12 @@ public final class BindingGenerator {
                 });
 
                 if (debugGenerator) {
-                    printModel(ClassFile.of().parse(bytecode).methods().getLast());
+                    printModel(ClassFile.of().parse(bytecode));
                 }
 
                 // Store the target handle as class data in the hidden class.
                 try {
-                    var wrapperLookup = lookup.defineHiddenClassWithClassData(bytecode, nativeHandle.getClassData(loader), true);
+                    var wrapperLookup = lookup.defineHiddenClassWithClassData(bytecode, nativeHandle.getClassData(context, method), true);
                     return wrapperLookup.findStatic(
                         wrapperLookup.lookupClass(),
                         method.getName(),
@@ -377,7 +363,7 @@ public final class BindingGenerator {
             }
 
             // No wrapper needed
-            return nativeHandle.getSimpleHandle(loader);
+            return nativeHandle.getSimpleHandle(context.loader);
         } catch (Throwable t) {
             throw new RuntimeException(t);
         }
@@ -401,6 +387,7 @@ public final class BindingGenerator {
         // 1: needs stack
         // 2: needs conversion from/to boolean
         // 4: needs check
+        // 8: needs tracing
         var wrapperFlags = 0;
         if (method.getReturnType() == String.class || method.getAnnotation(FFMReturn.class) != null) {
             wrapperFlags |= 1;

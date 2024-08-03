@@ -34,6 +34,14 @@ public class FFMOverheadTest {
         .downcallHandle(FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT))
         .bindTo(FUNCTION_NOOP_PARAMS);
 
+    private static final MethodHandle NOOP_CRIT = Linker.nativeLinker()
+        .downcallHandle(FunctionDescriptor.ofVoid(), Linker.Option.critical(false))
+        .bindTo(FUNCTION_NOOP);
+
+    private static final MethodHandle NOOP_PARAMS_CRIT = Linker.nativeLinker()
+        .downcallHandle(FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT), Linker.Option.critical(false))
+        .bindTo(FUNCTION_NOOP_PARAMS);
+
     private interface FFMBindings {
         @FFMName("org_lwjgl_system_noop")
         void noop();
@@ -96,9 +104,27 @@ public class FFMOverheadTest {
     }
 
     @Benchmark
+    public void ffm_noop$crit() {
+        try {
+            NOOP_CRIT.invokeExact();
+        } catch (Throwable e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    @Benchmark
     public void ffm_noop_params() {
         try {
             NOOP_PARAMS.invokeExact(param0, param1, param2);
+        } catch (Throwable e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    @Benchmark
+    public void ffm_noop_params$crit() {
+        try {
+            NOOP_PARAMS_CRIT.invokeExact(param0, param1, param2);
         } catch (Throwable e) {
             throw new AssertionError(e);
         }
@@ -122,12 +148,29 @@ public class FFMOverheadTest {
     }
 
     @Benchmark
+    public void ffm_noop_params_checked$crit() {
+        if (CHECKS) {
+            if (MemorySegment.NULL.equals(param0)) {
+                throw new IllegalArgumentException("MemorySegment argument <param0> cannot be NULL");
+            }
+            if (MemorySegment.NULL.equals(param1)) {
+                throw new IllegalArgumentException("MemorySegment argument <param1> cannot be NULL");
+            }
+        }
+        try {
+            NOOP_PARAMS_CRIT.invokeExact(param0, param1, param2);
+        } catch (Throwable e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    @Benchmark
     public void gen_noop() {
         BINDINGS.noop();
     }
 
     @Benchmark
-    public void gen_noop_crit() {
+    public void gen_noop$crit() {
         BINDINGS.noop_crit();
     }
 
@@ -137,17 +180,17 @@ public class FFMOverheadTest {
     }
 
     @Benchmark
+    public void gen_noop_params$crit() {
+        BINDINGS.noop_params_crit(param0, param1, param2);
+    }
+
+    @Benchmark
     public void gen_noop_params_checked() {
         BINDINGS.noop_params_checked(param0, param1, param2);
     }
 
     @Benchmark
-    public void gen_noop_params_crit() {
-        BINDINGS.noop_params_crit(param0, param1, param2);
-    }
-
-    @Benchmark
-    public void gen_noop_params_crit_checked() {
+    public void gen_noop_params_checked$crit() {
         BINDINGS.noop_params_crit_checked(param0, param1, param2);
     }
 

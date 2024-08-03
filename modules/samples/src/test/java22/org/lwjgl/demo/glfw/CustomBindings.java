@@ -12,6 +12,7 @@ import java.lang.foreign.*;
 import java.lang.invoke.*;
 import java.nio.charset.*;
 import java.util.*;
+import java.util.stream.*;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11C.*;
@@ -129,13 +130,29 @@ public class CustomBindings {
 
     static {
         //Configuration.DISABLE_CHECKS.set(true);
-        Configuration.DEBUG_GENERATOR.set(true);
+        Configuration.DEBUG_GENERATOR.set(false);
     }
 
     private static final SymbolLookup LOADER = SymbolLookup.libraryLookup(Objects.requireNonNull(org.lwjgl.glfw.GLFW.getLibrary().getPath()), Arena.global());
 
-    private static final MyGLFWBindings   glfw = BindingGenerator.generate(MethodHandles.lookup(), MyGLFWBindings.class, LOADER);
-    private static final MyOpenGLBindings gl   = BindingGenerator.generate(MethodHandles.lookup(), MyOpenGLBindings.class);
+    private static final TraceConsumer TRACER = (method, returnValue, args) -> {
+        /*try {
+            throw new RuntimeException();
+        } catch (RuntimeException e) {
+            e.printStackTrace();
+        }*/
+        var prefix = method.getDeclaringClass().getAnnotation(FFMPrefix.class);
+        if (prefix != null) {
+            System.err.print(prefix.value());
+        }
+        System.err.println(method.getName() + '(' + Stream.of(args)
+            .skip(1)
+            .map(CustomBindings::render)
+            .collect(Collectors.joining(", ")) + ")" + (returnValue == null ? "" : " : " + render(returnValue)));
+    };
+
+    private static final MyGLFWBindings   glfw = BindingGenerator.generate(MethodHandles.lookup(), MyGLFWBindings.class, LOADER, TRACER);
+    private static final MyOpenGLBindings gl   = BindingGenerator.generate(MethodHandles.lookup(), MyOpenGLBindings.class, TRACER);
 
     public static void main(String[] ignored) {
         System.err.println("BEFORE Init");
@@ -278,6 +295,14 @@ public class CustomBindings {
         glfw.DestroyWindow(window);
 
         glfw.Terminate();
+    }
+
+    private static String render(Object value) {
+        if (value instanceof MemorySegment segment) {
+            return "0x" + Long.toHexString(segment.address()) + (segment.byteSize() == 0 ? "" : (" [" + (segment.byteSize() == Long.MAX_VALUE ? "?" : segment.byteSize()) + "]"));
+        } else {
+            return value.toString();
+        }
     }
 
 }

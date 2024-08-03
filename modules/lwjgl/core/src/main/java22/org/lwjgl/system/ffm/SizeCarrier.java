@@ -8,7 +8,7 @@ import java.lang.classfile.*;
 import java.lang.constant.*;
 import java.lang.foreign.*;
 
-import static org.lwjgl.system.ffm.BindingGenerator.*;
+import static org.lwjgl.system.ffm.ConstantDescs.*;
 
 public enum SizeCarrier {
 

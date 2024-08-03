@@ -6,11 +6,11 @@ package org.lwjgl.system.ffm;
 
 import java.lang.classfile.*;
 import java.lang.constant.*;
-import java.lang.foreign.*;
 import java.lang.reflect.*;
 
 import static java.lang.constant.ConstantDescs.*;
 import static org.lwjgl.system.ffm.BindingGenerator.*;
+import static org.lwjgl.system.ffm.ConstantDescs.*;
 
 record ReturnTransform(
     int bufferIndex, int bufferSlot,
